@@ -1,0 +1,24 @@
+{
+  "name": "wol",
+  "version": "1.0.0",
+  "description": "WakeOnLan for my Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "tailwind:init": "tailwindcss init",
+    "server": "PORT=3002 node index.js"
+  },
+  "author": "Luis",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "path": "^0.12.7",
+    "ping": "^0.4.4",
+    "wakeonlan": "^0.1.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.1.11"
+  }
+}

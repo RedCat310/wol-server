@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Wake-on-LAN Interface</title>
+    <link rel="icon" href="power_favicon_transparent.ico" type="image/x-icon" />
+    <style>
+        /* Custom CSS */
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #1f2937; /* bg-gray-900 */
+            color: white;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background-color: #2d3748; /* bg-gray-800 */
+            padding: 2rem;
+            border-radius: 1.25rem; /* rounded-2xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -4px rgba(0, 0, 0, 0.6); /* shadow-lg */
+            width: 100%;
+            max-width: 28rem; /* max-w-md */
+            text-align: center;
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 1.5rem; /* text-2xl */
+            margin-bottom: 1.5rem;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 1rem; /* gap-4 */
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            padding: 0.5rem 1.5rem; /* py-2 px-6 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            color: white;
+            transition: background-color 0.2s ease-in-out;
+            user-select: none;
+        }
+
+        button#wake {
+            background-color: #16a34a; /* bg-green-600 */
+        }
+
+        button#wake:hover {
+            background-color: #15803d; /* hover:bg-green-700 */
+        }
+
+        button#ping {
+            background-color: #2563eb; /* bg-blue-600 */
+        }
+
+        button#ping:hover {
+            background-color: #1d4ed8; /* hover:bg-blue-700 */
+        }
+
+        .status-container {
+            font-size: 1.125rem; /* text-lg */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem; /* gap-2 */
+            color: white;
+        }
+
+        .status-text {
+            font-family: monospace;
+            color: #fbbf24; /* text-yellow-400 */
+        }
+
+        .status-text.green {
+            color: #4ade80; /* text-green-400 */
+        }
+
+        .status-text.red {
+            color: #ef4444; /* text-red-500 */
+        }
+
+        .spinner {
+            width: 1.25rem; /* w-5 */
+            height: 1.25rem; /* h-5 */
+            color: #fbbf24; /* text-yellow-400 */
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        .spinner.visible {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* SVG circle styles for spinner */
+        .spinner circle {
+            opacity: 0.25;
+            stroke-width: 4;
+            stroke: currentColor;
+            fill: none;
+        }
+
+        .spinner path {
+            opacity: 0.75;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wake-on-LAN Interface</h1>
+        <div class="button-group">
+            <button id="wake" type="button">Wake Server</button>
+            <button id="ping" type="button">Ping Server</button>
+        </div>
+        <div class="status-container">
+            Status:
+            <span id="status" class="status-text">Ready</span>
+            <svg id="spinner" class="spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        const spinner = document.getElementById('spinner');
+
+        function showSpinner() {
+            spinner.classList.add('visible');
+        }
+
+        function hideSpinner() {
+            spinner.classList.remove('visible');
+        }
+
+        document.getElementById('wake').addEventListener('click', () => {
+            showSpinner();
+            fetch('/wake?mac=00:19:99:E9:E7:2B') // replace with the MAC-Address of your PC
+                .then(response => response.json())
+                .then(data => {
+                    status.innerText = 'waiting for boot';
+                    status.className = "status-text";
+
+                    setTimeout(async () => {
+                        status.innerText = 'pinging';
+                        let booted = false;
+                        let trys = 0;
+                        while (!booted && trys < 10) {
+                            trys++;
+                            await fetch('/ping?host=192.168.178.59') // set static IP in your Router to make Ping work, then enter IP-Address
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.status == 'success' && data.message === true) {
+                                        booted = true;
+                                    }
+                                })
+                                .catch(error => {
+                                    status.innerText = 'failed, unknown error';
+                                    status.className = "status-text red";
+                                });
+                        }
+
+                        if (booted) {
+                            status.innerText = 'booted';
+                            status.className = "status-text green";
+                        } else {
+                            status.innerText = 'failed, did not respond to ping';
+                            status.className = "status-text red";
+                        }
+                        hideSpinner();
+                    }, 25000);
+                })
+                .catch(error => {
+                    status.innerText = 'failed, unknown error';
+                    status.className = "status-text red";
+                    hideSpinner();
+                });
+        });
+
+        document.getElementById('ping').addEventListener('click', () => {
+            showSpinner();
+            status.innerText = 'pinging';
+            status.className = "status-text";
+            fetch('/ping?host=192.168.178.59') // also here
+                .then(response => response.json())
+                .then(data => {
+                    if(data.message == true){
+                        status.innerText = 'server is active';
+                        status.className = "status-text green";
+                    } else {
+                        status.innerText = 'server is dead';
+                        status.className = "status-text red";
+                    }
+                    hideSpinner();
+                })
+                .catch(error => {
+                    status.innerText = 'failed, unknown error';
+                    status.className = "status-text red";
+                    hideSpinner();
+                });
+        });
+    </script>
+</body>
+</html>
